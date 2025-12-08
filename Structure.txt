@@ -9,3 +9,8 @@ GameSolution/
 │   ├── Program.cs   (TcpClient, UI loop)
 │   ├── Input/       (keyboard handling)
 │   └── Render/      (game display)
+
+
+Explication du jeu de facon plus claire :
+    - le jeu va etre cadrer dans un jeu de ping_pong classique
+      mais derriere les r
