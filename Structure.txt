@@ -1,0 +1,11 @@
+GameSolution/
+│
+├── ServerApp/
+│   ├── Program.cs   (TcpListener, DB connection, game loop)
+│   ├── GameLogic/   (rules, state)
+│   └── DataAccess/  (PostgreSQL via Npgsql)
+│
+├── ClientApp/
+│   ├── Program.cs   (TcpClient, UI loop)
+│   ├── Input/       (keyboard handling)
+│   └── Render/      (game display)
