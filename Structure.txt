@@ -112,3 +112,38 @@ Objet :
               score_stat
               id_player__team_1
               id_player__team_2
+
+ClientApp/
+├── Models/
+│   ├── Terrain.cs
+│   ├── Joueur.cs
+│   ├── PieceEchecs.cs
+│   ├── Balle.cs
+│   ├── CoupPingPong.cs
+│   ├── CollisionBallePiece.cs
+│   ├── MatchHybride.cs
+│   ├── StatistiquesJoueurMatch.cs
+│   └── Shared/
+│       └── Enums.cs
+│
+└── Program.cs
+
+ServerApp/
+├── Models/
+│   ├── Terrain.cs
+│   ├── Joueur.cs
+│   ├── PieceEchecs.cs
+│   ├── Balle.cs
+│   ├── CoupPingPong.cs
+│   ├── CollisionBallePiece.cs
+│   ├── MatchHybride.cs
+│   ├── StatistiquesJoueurMatch.cs
+│   ├── DeplacementPiece.cs
+│   ├── ConfigurationPieces.cs
+│   └── Shared/
+│       └── Enums.cs
+│
+├── Database/
+│   └── DatabaseContext.cs
+│
+└── Program.cs
