@@ -14,3 +14,38 @@ GameSolution/
 Explication du jeu de facon plus claire :
     - le jeu va etre cadrer dans un jeu de ping_pong classique
       mais derriere les r
+
+Objet :
+    - pions :
+              nombre de vie
+              libelle
+              ligne place
+              positions (x,y)
+    - ball :
+              positions (x,y)
+    - player :
+              nom 
+              positions (x,y)
+    - terrain :
+              nombre_ligne_pour_pions
+    - ball_frapper :
+              ball
+              player
+    - pions_toucher :
+              ball
+              pions
+    - quantity__player :
+              player_effectif___1
+              name_player[]___1
+              player_effectif___2
+              name_player[]___2
+    - pions_toucher_stat :
+               nombre
+               player__affecter
+    - match :
+              quantity__player
+              pions_toucher_stat
+              score_stat
+              affected_player
+
+              
