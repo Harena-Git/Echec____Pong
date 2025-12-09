@@ -16,36 +16,49 @@ Explication du jeu de facon plus claire :
       mais derriere les r
 
 Objet :
+    - terrain :
+              id_terrain
+              nom_terrain
+              nombre_colonne_pour_pions
     - pions :
+              id_pions
               nombre de vie
               libelle
-              ligne place
+              colonne place
               positions (x,y)
+              statut
+              id_terrain
     - ball :
+              id_ball
               positions (x,y)
     - player :
+              id_player
               nom 
               positions (x,y)
-    - terrain :
-              nombre_ligne_pour_pions
+              statut
+    - rebondissement__ball :
+              id_rebondissement__ball
+              choc_point (x,y)
     - ball_frapper :
-              ball
-              player
+              id_ball_frapper
+              id_ball
+              id_player
     - pions_toucher :
-              ball
-              pions
+              id_pions_toucher (toucher statut, vie du joueur affecter)
+              id_ball
+              id_pions
     - quantity__player :
-              player_effectif___1
+              id_quantity__player
               name_player[]___1
-              player_effectif___2
               name_player[]___2
     - pions_toucher_stat :
+               id_pions_toucher_stat
                nombre
-               player__affecter
+               id_player
     - match :
-              quantity__player
-              pions_toucher_stat
+              id_match
+              id_quantity__player
+              id_pions_toucher
               score_stat
-              affected_player
-
-              
+              id_player__team_1
+              id_player__team_2
