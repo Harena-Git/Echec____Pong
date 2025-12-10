@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace PingPongChess.Network;
+namespace ClientApp.Network;
 
 public class GameState
 {
@@ -21,6 +21,10 @@ public class PlayerState
     public int Score { get; set; }
     public bool IsServing { get; set; }
     public bool IsReady { get; set; }
+    
+    // NOUVEAU : Colonne actuelle (0-7)
+    [JsonIgnore]
+    public int CurrentColumn => (int)(PositionX * 7);
 }
 
 public class BallState

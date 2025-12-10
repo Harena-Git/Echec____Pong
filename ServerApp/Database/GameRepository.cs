@@ -22,8 +22,8 @@ public class GameRepository
     {
         var player = new DbPlayer
         {
-            Name = name,
-            CreatedAt = DateTime.UtcNow
+            Username = name,
+            RegistrationDate = DateTime.UtcNow
         };
         
         _context.Players.Add(player);

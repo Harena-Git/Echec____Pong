@@ -197,13 +197,13 @@ public class GameRenderer
     
     private void RenderBallWithTrajectory(BallState ball)
     {
-        // Prédire la trajectoire
-        var path = TrajectoryPredictor.PredictBallPath(
-            ball.PositionX, ball.PositionY, 
-            ball.VelocityX, ball.VelocityY, 5);
+        // Position actuelle et direction
+        int ballCol = (int)(ball.PositionX * 7);
+        string direction = ball.VelocityX > 0 ? "→" : "←";
+        
+        Console.Write($"[{ball.PositionX:F2},{ball.PositionY:F2}] {direction} ");
         
         // Afficher la balle à sa position actuelle
-        int ballCol = (int)(ball.PositionX * 7);
         for (int col = 0; col < 8; col++)
         {
             if (col == ballCol)
@@ -216,20 +216,12 @@ public class GameRenderer
             }
             else
             {
-                // Montrer la trajectoire future
-                var futurePos = path.FirstOrDefault(p => 
-                    Math.Abs(p.x - col/7.0f) < 0.1f);
-                    
-                if (futurePos.x > 0)
-                    Console.Write(" · ");
-                else
-                    Console.Write("   ");
+                Console.Write("   ");
             }
         }
         
-        // Indicateur de direction
-        string direction = ball.VelocityX > 0 ? "→" : "←";
-        Console.Write($" {direction} Col{_gameManager.PredictedTargetColumn}");
+        // Indicateur de colonne cible
+        Console.Write($" → Col{_gameManager.PredictedTargetColumn}");
     }
     
     private void RenderTargetingInfo()

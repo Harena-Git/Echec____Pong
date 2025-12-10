@@ -57,7 +57,12 @@ class Program
         }
         
         // Démarrer le serveur de jeu
-        int port = configuration.GetValue<int>("Server:Port", 7777);
+        int port = 7777;
+        var portValue = configuration["Server:Port"];
+        if (!string.IsNullOrEmpty(portValue) && int.TryParse(portValue, out int parsedPort))
+        {
+            port = parsedPort;
+        }
         var gameServer = new GameServer(port);
         gameServer.Start();
         

@@ -1,3 +1,5 @@
+using ServerApp.Network;
+
 namespace ServerApp.GameLogic;
 
 public class TargetingSystem

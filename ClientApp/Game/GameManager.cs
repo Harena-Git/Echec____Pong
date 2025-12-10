@@ -1,4 +1,5 @@
 using ClientApp.Network;
+using ClientApp.Client;
 
 namespace ClientApp.Game;
 

@@ -1,3 +1,5 @@
+using ClientApp.Game;
+
 namespace ClientApp.Input;
 
 public class KeyboardHandler

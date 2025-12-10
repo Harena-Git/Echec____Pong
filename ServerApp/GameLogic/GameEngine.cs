@@ -1,5 +1,6 @@
 using ServerApp.Models;
 using ServerApp.Network;
+using ServerApp.Database;
 
 namespace ServerApp.GameLogic;
 
@@ -195,7 +196,7 @@ public class GameEngine
             _gameState.Ball.VelocityY = 0;
             
             // Si la balle est sortie sans être défendue, marquer un point
-            if (lastPlayer != null && canDefend == false)
+            if (lastPlayer != null && exitColumn >= 0)
             {
                 if (lastPlayer.Side == "north")
                     _gameState.Match.ScoreNorth++;
