@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Configurer la base de données
 builder.Services.AddDbContext<DatabaseContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
+ 
 // Tester la connexion
 using (var scope = builder.Services.BuildServiceProvider().CreateScope())
 {

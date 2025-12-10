@@ -1,6 +1,6 @@
 # comprehesion
 ''''
-code de base
+code de base ****
 ''''
 
 # serveur
@@ -23,4 +23,3 @@ code de base
 1 --- test
 2 --- multi-test
 3 --- finalisation
-
