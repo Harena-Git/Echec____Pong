@@ -24,7 +24,7 @@ public class DatabaseContext : DbContext
         if (!optionsBuilder.IsConfigured)
         {
             // À configurer via appsettings.json
-            optionsBuilder.UseNpgsql("Host=localhost;Database=pingpong_chess;Username=postgres;Password=votre_mot_de_passe");
+            optionsBuilder.UseNpgsql("Host=localhost;Database=pingpong_chess;Username=postgres;Password=harena");
         }
     }
     

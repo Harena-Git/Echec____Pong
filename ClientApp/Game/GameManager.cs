@@ -8,13 +8,22 @@ public class GameManager
     private LocalPlayer? _localPlayer;
     private GameClient? _gameClient;
     
+    // Ciblage
+    private int _predictedTargetColumn = -1;
+    private bool _canDefendTarget;
+    private string _targetPieceType = string.Empty;
+    
     public GameState CurrentState => _currentState;
     public LocalPlayer? LocalPlayer => _localPlayer;
     public bool IsConnected => _gameClient?.IsConnected ?? false;
+    public int PredictedTargetColumn => _predictedTargetColumn;
+    public bool CanDefendTarget => _canDefendTarget;
+    public string TargetPieceType => _targetPieceType;
     
     public event Action<GameState>? OnGameStateUpdated;
     public event Action<string>? OnChatMessage;
     public event Action<string>? OnGameEvent;
+    public event Action<int, bool>? OnTargetingUpdated;
     
     public void Initialize(GameClient gameClient)
     {
@@ -97,6 +106,7 @@ public class GameManager
                 
             case GameStateUpdateMessage stateUpdate:
                 _currentState = stateUpdate.GameState;
+                UpdateTargetingPrediction();
                 OnGameStateUpdated?.Invoke(_currentState);
                 break;
                 
@@ -120,6 +130,45 @@ public class GameManager
                 }
                 break;
         }
+    }
+    
+    /// <summary>
+    /// Calcule la colonne ciblée par la balle et si elle est défendable.
+    /// </summary>
+    private void UpdateTargetingPrediction()
+    {
+        if (_currentState.Ball?.State != "moving" || _localPlayer == null)
+        {
+            _predictedTargetColumn = -1;
+            _canDefendTarget = false;
+            _targetPieceType = string.Empty;
+            return;
+        }
+        
+        var ball = _currentState.Ball;
+        int targetColumn = ball.VelocityX > 0
+            ? (int)(ball.PositionX * 8)
+            : (int)((1 - ball.PositionX) * 8);
+        
+        _predictedTargetColumn = Math.Clamp(targetColumn, 0, 7);
+        
+        // Joueur qui peut défendre : l'adversaire
+        var opponent = _currentState.Players.FirstOrDefault(p => p.Side != _localPlayer.Side);
+        _canDefendTarget = opponent != null && opponent.CurrentColumn == _predictedTargetColumn;
+        
+        // Pièce visée : rangée avant prioritaire
+        var targetPieces = _localPlayer.Side == "north"
+            ? _currentState.PiecesSouth
+            : _currentState.PiecesNorth;
+        
+        var targetPiece = targetPieces.FirstOrDefault(p =>
+            p.IsAlive && p.Column == _predictedTargetColumn && p.Row == 0)
+            ?? targetPieces.FirstOrDefault(p =>
+            p.IsAlive && p.Column == _predictedTargetColumn && p.Row == 1);
+        
+        _targetPieceType = targetPiece?.Type ?? "none";
+        
+        OnTargetingUpdated?.Invoke(_predictedTargetColumn, _canDefendTarget);
     }
     
     private void HandleJoinResponse(JoinResponseMessage response)

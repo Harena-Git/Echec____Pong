@@ -1,57 +1,125 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 namespace ServerApp.Server;
 
 /// <summary>
 /// Serveur TCP principal qui accepte les connexions clients
-/// et orchestre le jeu
+/// et orchestre le jeu.
 /// </summary>
 public class GameServer
 {
+    private readonly int _port;
     private TcpListener? _tcpListener;
-    private List<ClientHandler> _clients;
-    // private GameEngine _gameEngine;
-    
-    public GameServer()
+    private readonly List<ClientHandler> _clients = new();
+    private CancellationTokenSource? _cts;
+    private readonly object _lock = new();
+
+    public GameServer(int port)
     {
-        _clients = new List<ClientHandler>();
+        _port = port;
     }
-    
+
     /// <summary>
-    /// Démarre le serveur et commence à accepter les connexions
+    /// Démarre le serveur et commence à accepter les connexions.
     /// </summary>
-    public void Start(int port)
+    public void Start()
     {
-        // TODO: Initialiser TcpListener
-        // TODO: Démarrer l'écoute
-        // TODO: Accepter les clients de manière asynchrone
+        if (_tcpListener != null)
+            return;
+
+        _cts = new CancellationTokenSource();
+        _tcpListener = new TcpListener(IPAddress.Any, _port);
+        _tcpListener.Start();
+
+        Console.WriteLine($"[Server] Listening on port {_port}...");
+        _ = Task.Run(AcceptClientsAsync);
     }
-    
+
     /// <summary>
-    /// Accepte les nouvelles connexions clients
+    /// Boucle d'acceptation des clients.
     /// </summary>
-    private async void AcceptClients()
+    private async Task AcceptClientsAsync()
     {
-        // TODO: Boucle d'acceptation des clients
-        // TODO: Créer ClientHandler pour chaque client
+        if (_tcpListener == null || _cts == null)
+            return;
+
+        while (!_cts.IsCancellationRequested)
+        {
+            try
+            {
+                var tcpClient = await _tcpListener.AcceptTcpClientAsync(_cts.Token);
+                var handler = new ClientHandler(tcpClient, this);
+
+                lock (_lock)
+                {
+                    _clients.Add(handler);
+                }
+
+                Console.WriteLine($"[Server] Client connected ({tcpClient.Client.RemoteEndPoint})");
+                _ = handler.HandleClientAsync();
+            }
+            catch (OperationCanceledException)
+            {
+                // Arrêt demandé, sortir proprement
+                break;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Server] Accept error: {ex.Message}");
+            }
+        }
     }
-    
+
     /// <summary>
-    /// Envoie un message à tous les clients connectés
+    /// Envoie un message JSON à tous les clients connectés.
     /// </summary>
-    public void BroadcastMessage(string message)
+    public async Task BroadcastMessageAsync(string message)
     {
-        // TODO: Parcourir tous les clients et envoyer le message
+        List<ClientHandler> snapshot;
+        lock (_lock)
+        {
+            snapshot = _clients.ToList();
+        }
+
+        foreach (var client in snapshot)
+        {
+            await client.SendMessageAsync(message);
+        }
     }
-    
+
     /// <summary>
-    /// Arrête le serveur
+    /// Supprime un client de la liste (déconnexion).
+    /// </summary>
+    internal void RemoveClient(ClientHandler client)
+    {
+        lock (_lock)
+        {
+            _clients.Remove(client);
+        }
+    }
+
+    /// <summary>
+    /// Arrête le serveur et ferme toutes les connexions.
     /// </summary>
     public void Stop()
     {
-        // TODO: Fermer toutes les connexions
-        // TODO: Arrêter le TcpListener
+        _cts?.Cancel();
+        _cts = null;
+
+        lock (_lock)
+        {
+            foreach (var client in _clients.ToList())
+            {
+                client.Disconnect();
+            }
+            _clients.Clear();
+        }
+
+        _tcpListener?.Stop();
+        _tcpListener = null;
+        Console.WriteLine("[Server] Stopped.");
     }
 }
 
