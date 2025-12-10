@@ -66,59 +66,90 @@ public class GameRepository
     // Pièces
     public async Task InitializePiecesForMatchAsync(int matchId, int playerNorthId, int playerSouthId)
     {
-        var pieces = new List<DbPiece>();
+        var pieces = new List<DbPieceEchecs>();
         
-        // Pièces pour le joueur Nord (rangée 0-1)
+        // Pièces pour le joueur Nord (baseRow = 0)
+        // - Rangée arrière = 1, Rangée avant (pions) = 0
         pieces.AddRange(CreatePiecesForPlayer(matchId, playerNorthId, 0));
-        // Pièces pour le joueur Sud (rangée 1-0 inversé)
+        
+        // Pièces pour le joueur Sud (baseRow = 1)
+        // - Rangée arrière = 0, Rangée avant (pions) = 1
         pieces.AddRange(CreatePiecesForPlayer(matchId, playerSouthId, 1));
         
         _context.Pieces.AddRange(pieces);
         await _context.SaveChangesAsync();
     }
     
-    private List<DbPiece> CreatePiecesForPlayer(int matchId, int playerId, int baseRow)
+    private List<DbPieceEchecs> CreatePiecesForPlayer(int matchId, int playerId, int baseRow)
     {
-        var pieces = new List<DbPiece>();
+        var pieces = new List<DbPieceEchecs>();
         
         // Configuration standard
-        string[] backRowTypes = { "rook", "knight", "bishop", "queen", "king", "bishop", "knight", "rook" };
+        string[] backRowTypes = { "tour", "cavalier", "fou", "reine", "roi", "fou", "cavalier", "tour" };
+        int[] backRowHealth = { 2, 1, 1, 2, 3, 1, 1, 2 };
         
-        // Rangée arrière
+        // Pour le joueur Nord (baseRow = 0):
+        // - Rangée arrière (pièces importantes) = rangée 1
+        // - Rangée avant (pions) = rangée 0
+        
+        // Pour le joueur Sud (baseRow = 1):
+        // - Rangée arrière (pièces importantes) = rangée 0
+        // - Rangée avant (pions) = rangée 1
+        
+        int backRow = baseRow == 0 ? 1 : 0;  // Nord: rangée 1, Sud: rangée 0
+        int frontRow = baseRow == 0 ? 0 : 1; // Nord: rangée 0, Sud: rangée 1
+        
+        // Rangée arrière (roi, reine, etc.)
         for (int col = 0; col < 8; col++)
         {
-            pieces.Add(new DbPiece
+            pieces.Add(new DbPieceEchecs
             {
                 MatchId = matchId,
                 PlayerId = playerId,
                 Type = backRowTypes[col],
                 Column = col,
-                Row = baseRow == 0 ? 0 : 1, // Inverse pour Sud
-                Health = GetHealthForType(backRowTypes[col]),
-                CurrentHealth = GetHealthForType(backRowTypes[col]),
-                IsAlive = true,
+                Row = backRow,
+                MaxHealth = backRowHealth[col],
+                CurrentHealth = backRowHealth[col],
+                Status = "vivant",
+                Value = GetValueForType(backRowTypes[col]),
                 CreatedAt = DateTime.UtcNow
             });
         }
         
-        // Pions
+        // Pions (rangée avant)
         for (int col = 0; col < 8; col++)
         {
-            pieces.Add(new DbPiece
+            pieces.Add(new DbPieceEchecs
             {
                 MatchId = matchId,
                 PlayerId = playerId,
-                Type = "pawn",
+                Type = "pion",
                 Column = col,
-                Row = baseRow == 0 ? 1 : 0, // Inverse pour Sud
-                Health = 1,
+                Row = frontRow,
+                MaxHealth = 1,
                 CurrentHealth = 1,
-                IsAlive = true,
+                Status = "vivant",
+                Value = 1,
                 CreatedAt = DateTime.UtcNow
             });
         }
         
         return pieces;
+    }
+    
+    private int GetValueForType(string type)
+    {
+        return type switch
+        {
+            "roi" => 100,
+            "reine" => 9,
+            "tour" => 5,
+            "fou" => 3,
+            "cavalier" => 3,
+            "pion" => 1,
+            _ => 1
+        };
     }
     
     private int GetHealthForType(string type)

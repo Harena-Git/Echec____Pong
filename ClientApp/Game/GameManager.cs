@@ -42,24 +42,23 @@ public class GameManager
         _localPlayer = null;
     }
     
-    public void UpdatePlayerPosition(float x, float y)
+    public void UpdatePlayerPosition(float x, float y = 0f)
     {
         if (_localPlayer == null || _gameClient == null) return;
         
-        _localPlayer.PositionX = x;
+        _localPlayer.PositionX = Math.Clamp(x, 0f, 1f);
         _localPlayer.PositionY = y;
         
         var message = new PlayerMoveMessage
         {
             PlayerId = _localPlayer.Id,
-            PositionX = x,
-            PositionY = y
+            PositionX = _localPlayer.PositionX
         };
         
-        _gameClient.SendMessageAsync(message);
+        _ = _gameClient.SendMessageAsync(message);
     }
     
-    public void HitBall(float power, float angle, float x, float y)
+    public void SendBallHit(float power, float angle)
     {
         if (_localPlayer == null || _gameClient == null) return;
         
@@ -68,11 +67,10 @@ public class GameManager
             PlayerId = _localPlayer.Id,
             HitPower = power,
             HitAngle = angle,
-            HitPositionX = x,
-            HitPositionY = y
+            HitPositionX = _localPlayer.PositionX
         };
         
-        _gameClient.SendMessageAsync(message);
+        _ = _gameClient.SendMessageAsync(message);
     }
     
     public void SendChat(string text)
