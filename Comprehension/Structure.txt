@@ -1,0 +1,93 @@
+GameSolution/
+├── ClientApp/                    (PROJET CLIENT - AUTO-SUFFISANT)
+│   ├── Network/
+│   │   ├── GameMessage.cs        <-- Classes pour la communication
+│   │   ├── GameState.cs          <-- État du jeu (pour l'affichage)
+│   │   ├── NetworkClient.cs      <-- Client TCP
+│   │   └── NetworkProtocol.cs    <-- Constantes/protocole
+│   ├── Game/
+│   │   ├── Player.cs             <-- Joueur local
+│   │   ├── Ball.cs               <-- Balle (affichage seulement)
+│   │   ├── Piece.cs              <-- Pièces d'échecs
+│   │   └── GameManager.cs        <-- Gestionnaire de jeu client
+│   ├── Input/
+│   │   └── InputHandler.cs       <-- Gestion clavier/souris
+│   ├── Render/
+│   │   └── GameRenderer.cs       <-- Affichage graphique
+│   ├── Program.cs                <-- Point d'entrée
+│   ├── ClientApp.csproj          <-- Projet .NET
+│   └── appsettings.json          <-- Configuration (IP serveur)
+│
+└── ServerApp/                    (PROJET SERVEUR - AUTO-SUFFISANT)
+    ├── Database/
+    │   ├── DatabaseContext.cs    <-- Contexte EF Core
+    │   └── Repository.cs         <-- Accès aux données
+    ├── GameLogic/
+    │   ├── GameEngine.cs         <-- Moteur de jeu
+    │   ├── PhysicsEngine.cs      <-- Physique balle/collisions
+    │   ├── MatchManager.cs       <-- Gestion des matchs
+    │   └── PieceManager.cs       <-- Gestion des pièces
+    ├── Network/
+    │   ├── GameMessage.cs        <-- MÊMES classes que client
+    │   ├── GameState.cs          <-- MÊMES classes que client  
+    │   ├── NetworkServer.cs      <-- Serveur TCP
+    │   ├── ClientSession.cs      <-- Session joueur
+    │   └── NetworkProtocol.cs    <-- MÊMES constantes
+    ├── Models/                    <-- MODELS POUR LA BASE DE DONNÉES
+    │   ├── DbTerrain.cs
+    │   ├── DbJoueur.cs
+    │   ├── DbPieceEchecs.cs
+    │   ├── DbBalle.cs
+    │   ├── DbMatch.cs
+    │   └── DbStatistiques.cs
+    ├── Program.cs                <-- Point d'entrée
+    ├── ServerApp.csproj          <-- Projet .NET
+    └── appsettings.json          <-- Configuration (DB, ports)
+
+Objet :
+    - terrain :
+              id_terrain
+              nom_terrain
+              nombre_colonne_pour_pions
+    - pions :
+              id_pions
+              nombre de vie
+              libelle
+              colonne place
+              positions (x,y)
+              statut
+              id_terrain
+    - ball :
+              id_ball
+              positions (x,y)
+    - player :
+              id_player
+              nom 
+              positions (x,y)
+              statut
+    - rebondissement__ball :
+              id_rebondissement__ball
+              choc_point (x,y)
+    - ball_frapper :
+              id_ball_frapper
+              id_ball
+              id_player
+    - pions_toucher :
+              id_pions_toucher (toucher statut, vie du joueur affecter)
+              id_ball
+              id_pions
+    - quantity__player :
+              id_quantity__player
+              name_player[]___1
+              name_player[]___2
+    - pions_toucher_stat :
+               id_pions_toucher_stat
+               nombre
+               id_player
+    - match :
+              id_match
+              id_quantity__player
+              id_pions_toucher
+              score_stat
+              id_player__team_1
+              id_player__team_2
