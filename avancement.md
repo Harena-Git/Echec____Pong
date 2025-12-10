@@ -50,11 +50,41 @@
 ---
 
 ## Historique des tâches récentes
+- ✅ **Migration Console → Windows Forms** (NOUVELLE - Décembre 2024)
+  - Mise à jour ClientApp.csproj (net9.0-windows, WinExe, UseWindowsForms)
+  - Création Forms/ConnectionForm.cs (menu connexion avec 3 modes)
+  - Création Forms/MainForm.cs (3 pages : nom, config, jeu)
+  - Modification Program.cs pour Application.Run(new ConnectionForm())
+  - Rendu graphique avec GDI+ (Graphics, Bitmap, double buffering)
+  - Gestion clavier fluide (KeyDown/KeyUp events + Timer 20 FPS)
+  - **Compilation réussie** : ClientApp.dll (net9.0-windows)
+  - **Code métier préservé** : GameClient, GameManager, Network inchangés
+- ✅ **Correction des erreurs de compilation**
+  - CS0123 : OnMessageReceived(GameMessage) au lieu de (string)
+  - CS4014 : Ajout `_ =` pour async fire-and-forget
+  - CS0067 : Suppression événement OnNameSubmitted inutilisé
 - ✅ Implémentation `GameServer` (écoute, acceptation, broadcast, arrêt).
 - ✅ Implémentation `ClientHandler` (réception/émission JSON, déconnexion propre).
 - ✅ Finalisation `Program.cs` client (connexion async, wiring événements, boucle).
 - ✅ Correction ROUND NUMERIC dans `database/schema.sql`.
 - ✅ Ajout scripts `drop.sql` (reset DB).
+
+---
+
+## ⚠️ Problèmes connus à résoudre
+
+### Serveur ne traite pas les messages (CRITIQUE)
+- **Symptôme** : Le client reste bloqué à "En attente de la réponse du serveur..."
+- **Cause** : Le serveur accepte les connexions TCP mais ne traite pas les messages reçus
+- **Fichiers concernés** :
+  - `ServerApp/Server/ClientHandler.cs` : Manque boucle de traitement des messages
+  - `ServerApp/Server/GameServer.cs` : Pas de dispatcher pour JoinRequest/GameConfig
+- **À implémenter** :
+  1. Boucle de réception et désérialisation des messages dans ClientHandler
+  2. Traitement de JoinRequestMessage → JoinResponseMessage
+  3. Traitement de GameConfigMessage → Initialisation GameEngine
+  4. Traitement de PlayerMoveMessage → Mise à jour positions
+  5. Timer pour PhysicsEngine.UpdatePhysics() (50ms)
 
 ---
 

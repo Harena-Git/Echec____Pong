@@ -94,7 +94,7 @@ public class GameManager
             Text = text
         };
         
-        _gameClient.SendMessageAsync(message);
+        _ = _gameClient.SendMessageAsync(message);
     }
     
     private void HandleNetworkMessage(GameMessage message)
@@ -127,7 +127,7 @@ public class GameManager
                 // Répondre au ping automatiquement
                 if (_gameClient != null)
                 {
-                    _gameClient.SendMessageAsync(new PingMessage());
+                    _ = _gameClient.SendMessageAsync(new PingMessage());
                 }
                 break;
         }

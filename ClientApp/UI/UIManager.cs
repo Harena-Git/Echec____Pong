@@ -22,7 +22,6 @@ public class UIManager
     public string? PlayerSide { get; set; }
     public int NumberOfColumns { get; set; } = 8;
     
-    public event Action<string>? OnNameSubmitted;
     public event Action<int>? OnConfigSubmitted;
     
     public void ShowNameInputPage()
