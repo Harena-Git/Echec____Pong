@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
+using ServerApp.Database;
 
 namespace ServerApp.Server;
 
@@ -15,10 +17,12 @@ public class GameServer
     private readonly List<ClientHandler> _clients = new();
     private CancellationTokenSource? _cts;
     private readonly object _lock = new();
+    private readonly DbContextOptions<DatabaseContext> _dbOptions;
 
-    public GameServer(int port)
+    public GameServer(int port, DbContextOptions<DatabaseContext> dbOptions)
     {
         _port = port;
+        _dbOptions = dbOptions;
     }
 
     /// <summary>

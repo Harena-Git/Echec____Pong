@@ -57,6 +57,17 @@ public class DatabaseContext : DbContext
                   .WithMany(t => t.Matches)
                   .HasForeignKey(e => e.TerrainId)
                   .OnDelete(DeleteBehavior.SetNull);
+                  
+            // Configuration pour ServingPlayer et Winner (relations supplémentaires)
+            entity.HasOne(e => e.ServingPlayer)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServingPlayerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+                  
+            entity.HasOne(e => e.Winner)
+                  .WithMany()
+                  .HasForeignKey(e => e.WinnerId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
         
         // Configuration DbPieceEchecs
