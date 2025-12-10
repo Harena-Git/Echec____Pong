@@ -103,8 +103,11 @@ public class GameRenderer
     
     private void RenderChessRow(List<PieceState> pieces, int row, bool isLocalPlayer)
     {
+        var state = _gameManager.CurrentState;
+        int numCols = state?.NumberOfColumns ?? 8;
+        
         Console.Write("│ ");
-        for (int col = 0; col < 8; col++)
+        for (int col = 0; col < numCols; col++)
         {
             var piece = pieces.FirstOrDefault(p => 
                 p.Row == row && p.Column == col && p.IsAlive);
@@ -180,31 +183,44 @@ public class GameRenderer
     
     private void RenderPaddleLine(PlayerState player, bool isLocalPlayer)
     {
-        for (int col = 0; col < 8; col++)
+        var state = _gameManager.CurrentState;
+        int numCols = state?.NumberOfColumns ?? 8;
+        float colWidth = 1.0f / numCols;
+        
+        for (int col = 0; col < numCols; col++)
         {
-            if (col == player.CurrentColumn)
+            float colStart = col * colWidth;
+            float colEnd = (col + 1) * colWidth;
+            
+            // Vérifier si la raquette chevauche cette colonne
+            bool paddleInColumn = player.PaddleLeft < colEnd && player.PaddleRight > colStart;
+            
+            if (paddleInColumn)
             {
                 Console.ForegroundColor = isLocalPlayer ? ConsoleColor.Cyan : ConsoleColor.Yellow;
-                Console.Write("[X]");
+                Console.Write("[══]");
                 Console.ResetColor();
             }
             else
             {
-                Console.Write("   ");
+                Console.Write("    ");
             }
         }
     }
     
     private void RenderBallWithTrajectory(BallState ball)
     {
+        var state = _gameManager.CurrentState;
+        int numCols = state?.NumberOfColumns ?? 8;
+        
         // Position actuelle et direction
-        int ballCol = (int)(ball.PositionX * 7);
+        int ballCol = (int)(ball.PositionX * (numCols - 1));
         string direction = ball.VelocityX > 0 ? "→" : "←";
         
         Console.Write($"[{ball.PositionX:F2},{ball.PositionY:F2}] {direction} ");
         
         // Afficher la balle à sa position actuelle
-        for (int col = 0; col < 8; col++)
+        for (int col = 0; col < numCols; col++)
         {
             if (col == ballCol)
             {
@@ -253,9 +269,8 @@ public class GameRenderer
         Console.WriteLine();
         Console.WriteLine("┌────────────── COMMANDES ──────────────┐");
         Console.WriteLine("│ ← → : Déplacer raquette               │");
-        Console.WriteLine("│ ESPACE : Frapper la balle             │");
+        Console.WriteLine("│ 🎯 FRAPPE AUTOMATIQUE sur collision   │");
         Console.WriteLine("│ C : Chat | Q : Quitter                │");
-        Console.WriteLine("│ A/Z : Ajuster angle/puissance         │");
         Console.WriteLine("└───────────────────────────────────────┘");
     }
     

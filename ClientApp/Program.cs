@@ -3,6 +3,7 @@ using ClientApp.Game;
 using ClientApp.Input;
 using ClientApp.Render;
 using ClientApp.Network;
+using ClientApp.UI;
 
 namespace ClientApp;
 
@@ -11,11 +12,18 @@ namespace ClientApp;
 /// </summary>
 class Program
 {
+    private static UIManager? _uiManager;
+    private static GameClient? _gameClient;
+    private static GameManager? _gameManager;
+    private static GameRenderer? _gameRenderer;
+    private static KeyboardHandler? _keyboardHandler;
+    private static bool _isInGame = false;
+    
     static async Task Main(string[] args)
     {
         Console.Title = "Échec-Pong Client";
         
-        // Configuration
+        // Configuration de la connexion
         string? serverIp = null;
         int port = 7777; // Port par défaut du serveur
         
@@ -99,16 +107,14 @@ class Program
         }
         
         // Initialisation des composants
-        var gameClient = new GameClient();
-        var gameManager = new GameManager();
-        gameManager.Initialize(gameClient);
-        
-        var gameRenderer = new GameRenderer(gameManager);
-        var keyboardHandler = new KeyboardHandler(gameManager);
+        _uiManager = new UIManager();
+        _gameClient = new GameClient();
+        _gameManager = new GameManager();
+        _gameManager.Initialize(_gameClient);
         
         // Connexion au serveur
         Console.WriteLine($"\n🔗 Connexion au serveur {serverIp}:{port}...");
-        if (!await gameClient.ConnectAsync(serverIp, port))
+        if (!await _gameClient.ConnectAsync(serverIp, port))
         {
             Console.WriteLine("❌ Impossible de se connecter au serveur");
             Console.WriteLine("Vérifiez que le serveur est démarré et accessible.");
@@ -118,54 +124,156 @@ class Program
         }
         
         Console.WriteLine("✅ Connecté au serveur !");
-        Console.Write("Entrez votre nom: ");
+        
+        // Écouter les messages réseau
+        _gameClient.OnMessageReceived += OnMessageReceived;
+        
+        // PAGE 1: Saisie du nom
+        _uiManager.ShowNameInputPage();
         string? playerName = Console.ReadLine();
         
         if (string.IsNullOrWhiteSpace(playerName))
             playerName = "Player" + Random.Shared.Next(1000, 9999);
+            
+        _uiManager.PlayerName = playerName;
         
         // Envoyer la demande de connexion
-        var joinRequest = new ClientApp.Network.JoinRequestMessage { PlayerName = playerName };
-        await gameClient.SendMessageAsync(joinRequest);
+        var joinRequest = new JoinRequestMessage { PlayerName = playerName };
+        await _gameClient.SendMessageAsync(joinRequest);
         
-        // Configurer les événements
-        keyboardHandler.OnMove += (delta) =>
+        _uiManager.ShowWaitingMessage("En attente de la réponse du serveur...");
+        
+        // Attendre l'initialisation complète avant de démarrer le jeu
+        while (!_isInGame && _gameClient.IsConnected)
         {
-            if (gameManager.LocalPlayer != null)
-            {
-                float newX = Math.Clamp(gameManager.LocalPlayer.PositionX + delta, 0f, 1f);
-                gameManager.UpdatePlayerPosition(newX, 0f);
-            }
-        };
+            await Task.Delay(100);
+        }
         
-        keyboardHandler.OnHit += (power, angle) =>
-        {
-            gameManager.SendBallHit(power, angle);
-        };
-        
-        keyboardHandler.OnChat += (text) =>
-        {
-            gameManager.SendChat(text);
-        };
-        
-        keyboardHandler.OnQuit += () =>
-        {
-            gameManager.Disconnect();
-            Environment.Exit(0);
-        };
-        
-        // Démarrer l'écoute du clavier
-        keyboardHandler.StartListening();
-        
-        // Boucle principale (attendre que l'utilisateur quitte)
-        Console.WriteLine("Appuyez sur 'Q' pour quitter...");
-        while (gameClient.IsConnected)
+        // Boucle principale
+        while (_gameClient.IsConnected)
         {
             await Task.Delay(100);
         }
         
         // Nettoyage
-        gameClient.Disconnect();
+        _gameClient.Disconnect();
+    }
+    
+    private static async void OnMessageReceived(string json)
+    {
+        var message = GameMessage.FromJson(json);
+        
+        if (message is JoinResponseMessage joinResponse)
+        {
+            if (joinResponse.Success)
+            {
+                if (_uiManager != null)
+                {
+                    _uiManager.PlayerId = joinResponse.PlayerId;
+                    _uiManager.PlayerSide = joinResponse.Side;
+                    _uiManager.ShowSuccess($"Connecté en tant que {joinResponse.PlayerName} ({joinResponse.Side})");
+                }
+                
+                await Task.Delay(1000);
+                
+                // Si c'est le joueur 1 (North), afficher la page de configuration
+                if (joinResponse.Side == "north" && _uiManager != null)
+                {
+                    _uiManager.OnConfigSubmitted += OnConfigSubmitted;
+                    _uiManager.ShowGameConfigPage();
+                    
+                    // Écouter les entrées pour la configuration
+                    _ = Task.Run(() => HandleConfigInput());
+                }
+                else if (_uiManager != null)
+                {
+                    // Joueur 2 attend la configuration
+                    _uiManager.ShowWaitingMessage("En attente de la configuration par le Joueur 1...");
+                }
+            }
+            else
+            {
+                _uiManager?.ShowError(joinResponse.ErrorMessage ?? "Connexion refusée");
+            }
+        }
+        else if (message is GameStateUpdateMessage stateUpdate)
+        {
+            // Quand le jeu commence, passer à la page de jeu
+            if (!_isInGame && stateUpdate.GameState.Match.Status == "playing")
+            {
+                StartGame();
+            }
+        }
+    }
+    
+    private static void HandleConfigInput()
+    {
+        while (_uiManager?.CurrentPage == UIManager.UIPage.GameConfig)
+        {
+            if (Console.KeyAvailable)
+            {
+                var key = Console.ReadKey(true);
+                _uiManager.HandleConfigInput(key.Key);
+            }
+            Thread.Sleep(50);
+        }
+    }
+    
+    private static async void OnConfigSubmitted(int numberOfColumns)
+    {
+        if (_gameClient == null || _uiManager == null) return;
+        
+        // Envoyer la configuration au serveur
+        var configMessage = new GameConfigMessage
+        {
+            PlayerId = _uiManager.PlayerId ?? 0,
+            NumberOfColumns = numberOfColumns
+        };
+        
+        await _gameClient.SendMessageAsync(configMessage);
+        _uiManager.ShowSuccess($"Configuration envoyée: {numberOfColumns} colonnes");
+        _uiManager.ShowWaitingMessage("Démarrage du jeu...");
+    }
+    
+    private static void StartGame()
+    {
+        _isInGame = true;
+        
+        if (_uiManager != null)
+        {
+            _uiManager.ShowInGamePage();
+        }
+        
+        // Initialiser le renderer et le keyboard handler
+        if (_gameManager != null)
+        {
+            _gameRenderer = new GameRenderer(_gameManager);
+            _keyboardHandler = new KeyboardHandler(_gameManager);
+            
+            // Configurer les événements clavier
+            _keyboardHandler.OnMove += (delta) =>
+            {
+                if (_gameManager.LocalPlayer != null)
+                {
+                    float newX = Math.Clamp(_gameManager.LocalPlayer.PositionX + delta, 0f, 1f);
+                    _gameManager.UpdatePlayerPosition(newX, 0f);
+                }
+            };
+            
+            _keyboardHandler.OnChat += (text) =>
+            {
+                _gameManager.SendChat(text);
+            };
+            
+            _keyboardHandler.OnQuit += () =>
+            {
+                _gameManager.Disconnect();
+                Environment.Exit(0);
+            };
+            
+            // Démarrer l'écoute du clavier
+            _keyboardHandler.StartListening();
+        }
     }
 }
 

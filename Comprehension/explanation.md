@@ -12,11 +12,18 @@ Ce document explique le fonctionnement du projet, l'architecture et le rôle de 
 2. **Échecs** : Chaque joueur a un échiquier derrière lui avec des pièces ayant des vies
 
 **Mécanique principale :**
+- La balle est frappée **automatiquement** quand elle croise la raquette du joueur
+- Les joueurs déplacent leur raquette (rectangle) avec les flèches ← →
 - Si un joueur rate la balle, celle-ci sort du terrain par une **colonne** (0-7)
 - La balle touche alors la pièce d'échecs de l'adversaire dans cette colonne
 - Chaque pièce a des **vies** (Roi: 3♥, Reine: 2♥, etc.)
 - Si une pièce perd toutes ses vies, elle est éliminée
 - **Victoire** : Capturer le Roi adverse OU atteindre 11 points au Ping-Pong
+
+**Interface Multi-Page :**
+1. **Page 1** : Saisie des noms des joueurs (chaque fenêtre)
+2. **Page 2** : Configuration du jeu - Le Joueur 1 choisit le nombre de colonnes (2-8)
+3. **Page 3** : Jeu en cours avec interface complète
 
 ---
 

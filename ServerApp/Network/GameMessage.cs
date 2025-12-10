@@ -26,6 +26,7 @@ public abstract class GameMessage
                 {
                     "joinRequest" => JsonSerializer.Deserialize<JoinRequestMessage>(json),
                     "joinResponse" => JsonSerializer.Deserialize<JoinResponseMessage>(json),
+                    "gameConfig" => JsonSerializer.Deserialize<GameConfigMessage>(json),
                     "playerMove" => JsonSerializer.Deserialize<PlayerMoveMessage>(json),
                     "ballHit" => JsonSerializer.Deserialize<BallHitMessage>(json),
                     "gameStateUpdate" => JsonSerializer.Deserialize<GameStateUpdateMessage>(json),
@@ -69,6 +70,17 @@ public class JoinResponseMessage : GameMessage
     
     [JsonPropertyName("errorMessage")]
     public string? ErrorMessage { get; set; }
+}
+
+public class GameConfigMessage : GameMessage
+{
+    public GameConfigMessage() => MessageType = "gameConfig";
+    
+    [JsonPropertyName("playerId")]
+    public int PlayerId { get; set; }
+    
+    [JsonPropertyName("numberOfColumns")]
+    public int NumberOfColumns { get; set; } = 8;
 }
 
 public class PlayerMoveMessage : GameMessage

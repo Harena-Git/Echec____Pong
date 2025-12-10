@@ -9,6 +9,7 @@ public class GameState
     public List<PieceState> PiecesNorth { get; set; } = new();
     public List<PieceState> PiecesSouth { get; set; } = new();
     public MatchInfo Match { get; set; } = new();
+    public int NumberOfColumns { get; set; } = 8; // Configuration du nombre de colonnes
 }
 
 public class PlayerState
@@ -17,6 +18,7 @@ public class PlayerState
     public string Name { get; set; } = string.Empty;
     public float PositionX { get; set; }
     public float PositionY { get; set; }
+    public float PaddleWidth { get; set; } = 0.15f; // Largeur de la raquette (rectangle)
     public string Side { get; set; } = "north"; // "north" or "south"
     public int Score { get; set; }
     public bool IsServing { get; set; }
@@ -25,6 +27,12 @@ public class PlayerState
     // NOUVEAU : Colonne actuelle (0-7)
     [JsonIgnore]
     public int CurrentColumn => (int)(PositionX * 7);
+    
+    // NOUVEAU : Limites de la raquette (pour collision)
+    [JsonIgnore]
+    public float PaddleLeft => Math.Max(0, PositionX - PaddleWidth / 2);
+    [JsonIgnore]
+    public float PaddleRight => Math.Min(1, PositionX + PaddleWidth / 2);
 }
 
 public class BallState

@@ -9,20 +9,31 @@ public class GameEngine
     private GameState _gameState = new();
     private PhysicsEngine _physics = new();
     private readonly GameRepository _repository;
+    private int _numberOfColumns = 8; // Configuration dynamique
     
     public GameEngine(GameRepository repository)
     {
         _repository = repository;
     }
     
+    public void SetNumberOfColumns(int columns)
+    {
+        _numberOfColumns = Math.Clamp(columns, 2, 8);
+        _gameState.NumberOfColumns = _numberOfColumns;
+        
+        // Réinitialiser les pièces avec le nouveau nombre de colonnes
+        InitializePieces();
+    }
+    
     public void InitializeMatch(int playerNorthId, int playerSouthId)
     {
         _gameState = new GameState
         {
+            NumberOfColumns = _numberOfColumns,
             Players = new List<PlayerState>
             {
-                new() { Id = playerNorthId, Name = "Nord", Side = "north", PositionX = 0.5f },
-                new() { Id = playerSouthId, Name = "Sud", Side = "south", PositionX = 0.5f }
+                new() { Id = playerNorthId, Name = "Nord", Side = "north", PositionX = 0.5f, PaddleWidth = 0.15f },
+                new() { Id = playerSouthId, Name = "Sud", Side = "south", PositionX = 0.5f, PaddleWidth = 0.15f }
             },
             Ball = new BallState { PositionX = 0.5f, PositionY = 0.5f, State = "idle" },
             Match = new MatchInfo { Status = "playing", CurrentPhase = "pingpong" }
@@ -47,7 +58,8 @@ public class GameEngine
         string[] backRowTypes = { "rook", "knight", "bishop", "queen", "king", "bishop", "knight", "rook" };
         int[] backRowHealth = { 2, 1, 1, 2, 3, 1, 1, 2 };
         
-        for (int col = 0; col < 8; col++)
+        // Créer uniquement le nombre de colonnes configurées
+        for (int col = 0; col < _numberOfColumns; col++)
         {
             pieces.Add(new PieceState
             {
@@ -62,7 +74,7 @@ public class GameEngine
         }
         
         // Pions
-        for (int col = 0; col < 8; col++)
+        for (int col = 0; col < _numberOfColumns; col++)
         {
             pieces.Add(new PieceState
             {
@@ -119,7 +131,11 @@ public class GameEngine
     public GameStateUpdateMessage UpdatePhysics(float deltaTime)
     {
         if (_gameState.Ball.State != "moving")
+        {
+            // Vérifier si la balle idle est touchée par une raquette
+            CheckAutomaticBallHit();
             return new GameStateUpdateMessage { GameState = _gameState };
+        }
         
         // Utiliser le moteur physique
         var (newX, newY, newVX, newVY) = _physics.UpdateBallPosition(
@@ -135,6 +151,9 @@ public class GameEngine
         _gameState.Ball.VelocityX = newVX;
         _gameState.Ball.VelocityY = newVY;
         
+        // Vérifier collision avec les raquettes (rebond automatique)
+        CheckPaddleCollision();
+        
         // Vérifier si la balle sort du terrain (collision avec les bords latéraux)
         bool ballExitedLeft = _gameState.Ball.PositionX <= 0 && _gameState.Ball.VelocityX < 0;
         bool ballExitedRight = _gameState.Ball.PositionX >= 1 && _gameState.Ball.VelocityX > 0;
@@ -143,7 +162,7 @@ public class GameEngine
         {
             // La balle sort du terrain - maintenant elle peut toucher une pièce
             int exitColumn = _physics.CalculateImpactColumn(_gameState.Ball.PositionX, _gameState.Ball.VelocityX);
-            exitColumn = Math.Clamp(exitColumn, 0, 7);
+            exitColumn = Math.Clamp(exitColumn, 0, _numberOfColumns - 1);
             
             // Déterminer quel joueur a tiré et quel joueur est ciblé
             var lastPlayer = _gameState.Players.FirstOrDefault(p => p.Id == _gameState.Ball.LastPlayerId);
@@ -219,18 +238,90 @@ public class GameEngine
         if (ball.VelocityX > 0)
         {
             // Sort par la droite - colonne basée sur position Y actuelle
-            return Math.Clamp((int)(ball.PositionX * 8), 0, 7);
+            return Math.Clamp((int)(ball.PositionX * _numberOfColumns), 0, _numberOfColumns - 1);
         }
         else
         {
             // Sort par la gauche - colonne inversée
-            return Math.Clamp((int)((1 - ball.PositionX) * 8), 0, 7);
+            return Math.Clamp((int)((1 - ball.PositionX) * _numberOfColumns), 0, _numberOfColumns - 1);
         }
     }
     
     private bool CanPlayerDefendColumn(PlayerState player, int column)
     {
-        int playerColumn = (int)(player.PositionX * 8);
+        // Utiliser la largeur de la raquette pour la défense
+        float colWidth = 1.0f / _numberOfColumns;
+        float colStart = column * colWidth;
+        float colEnd = (column + 1) * colWidth;
+        
+        // Vérifier si la raquette chevauche cette colonne
+        return player.PaddleLeft < colEnd && player.PaddleRight > colStart;
+    }
+    
+    /// <summary>
+    /// Vérifie si une raquette touche la balle idle et la lance automatiquement
+    /// </summary>
+    private void CheckAutomaticBallHit()
+    {
+        if (_gameState.Ball.State != "idle") return;
+        
+        foreach (var player in _gameState.Players)
+        {
+            // Vérifier si la raquette du joueur touche la balle
+            if (_gameState.Ball.PositionX >= player.PaddleLeft && 
+                _gameState.Ball.PositionX <= player.PaddleRight)
+            {
+                // Frappe automatique!
+                bool isNorth = player.Side == "north";
+                float direction = isNorth ? 1f : -1f; // Nord → Sud, Sud → Nord
+                
+                // Lancer la balle avec paramètres par défaut
+                float angle = 45f;
+                float power = 1.5f;
+                
+                _gameState.Ball.State = "moving";
+                _gameState.Ball.VelocityX = MathF.Cos(angle * MathF.PI / 180f) * power * direction;
+                _gameState.Ball.VelocityY = MathF.Sin(angle * MathF.PI / 180f) * power;
+                _gameState.Ball.LastPlayerId = player.Id;
+                _gameState.Ball.PositionX = player.PositionX;
+                
+                break; // Une seule frappe par update
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Vérifie collision entre la balle en mouvement et les raquettes
+    /// </summary>
+    private void CheckPaddleCollision()
+    {
+        if (_gameState.Ball.State != "moving") return;
+        
+        foreach (var player in _gameState.Players)
+        {
+            // Vérifier si la balle traverse la position du joueur
+            bool ballAtPlayerPosition = Math.Abs(_gameState.Ball.PositionY - 0.5f) < 0.1f; // Zone de collision
+            bool ballInPaddleRange = _gameState.Ball.PositionX >= player.PaddleLeft && 
+                                    _gameState.Ball.PositionX <= player.PaddleRight;
+            
+            // Vérifier si c'est le bon joueur (la balle doit venir de l'adversaire)
+            bool isBallFromOpponent = _gameState.Ball.LastPlayerId != player.Id;
+            
+            if (ballAtPlayerPosition && ballInPaddleRange && isBallFromOpponent)
+            {
+                // Rebond automatique!
+                _gameState.Ball.VelocityX = -_gameState.Ball.VelocityX * 1.1f; // Légère accélération
+                _gameState.Ball.VelocityY = -_gameState.Ball.VelocityY * 0.9f;
+                _gameState.Ball.LastPlayerId = player.Id;
+                
+                break; // Un seul rebond par update
+            }
+        }
+    }
+    
+    private bool CanPlayerDefendColumn_Old(PlayerState player, int column)
+    {
+        int playerColumn = (int)(player.PositionX * _numberOfColumns);
         return playerColumn == column;
     }
     
