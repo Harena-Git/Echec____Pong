@@ -1,30 +1,35 @@
-using PingPongChess.Network;
+using ClientApp.Network;
 
-namespace PingPongChess.Client.Game;
+namespace ClientApp.Game;
 
 public class GameManager
 {
     private GameState _currentState = new();
-    private Player? _localPlayer;
-    private NetworkClient? _networkClient;
+    private LocalPlayer? _localPlayer;
+    private GameClient? _gameClient;
     
     public GameState CurrentState => _currentState;
-    public Player? LocalPlayer => _localPlayer;
-    public bool IsConnected => _networkClient?.IsConnected ?? false;
+    public LocalPlayer? LocalPlayer => _localPlayer;
+    public bool IsConnected => _gameClient?.IsConnected ?? false;
     
     public event Action<GameState>? OnGameStateUpdated;
     public event Action<string>? OnChatMessage;
     public event Action<string>? OnGameEvent;
     
+    public void Initialize(GameClient gameClient)
+    {
+        _gameClient = gameClient;
+        _gameClient.OnMessageReceived += HandleNetworkMessage;
+    }
+    
     public async Task<bool> ConnectToServer(string ipAddress, int port, string playerName)
     {
-        _networkClient = new NetworkClient();
-        _networkClient.OnMessageReceived += HandleNetworkMessage;
+        if (_gameClient == null) return false;
         
-        if (await _networkClient.ConnectAsync(ipAddress, port))
+        if (await _gameClient.ConnectAsync(ipAddress, port))
         {
             var joinRequest = new JoinRequestMessage { PlayerName = playerName };
-            await _networkClient.SendMessageAsync(joinRequest);
+            await _gameClient.SendMessageAsync(joinRequest);
             return true;
         }
         
@@ -33,12 +38,16 @@ public class GameManager
     
     public void Disconnect()
     {
-        _networkClient?.Disconnect();
+        _gameClient?.Disconnect();
+        _localPlayer = null;
     }
     
-    public void SendPlayerMove(float x, float y)
+    public void UpdatePlayerPosition(float x, float y)
     {
-        if (_localPlayer == null || _networkClient == null) return;
+        if (_localPlayer == null || _gameClient == null) return;
+        
+        _localPlayer.PositionX = x;
+        _localPlayer.PositionY = y;
         
         var message = new PlayerMoveMessage
         {
@@ -47,12 +56,12 @@ public class GameManager
             PositionY = y
         };
         
-        _networkClient.SendMessageAsync(message);
+        _gameClient.SendMessageAsync(message);
     }
     
-    public void SendBallHit(float power, float angle, float x, float y)
+    public void HitBall(float power, float angle, float x, float y)
     {
-        if (_localPlayer == null || _networkClient == null) return;
+        if (_localPlayer == null || _gameClient == null) return;
         
         var message = new BallHitMessage
         {
@@ -63,12 +72,12 @@ public class GameManager
             HitPositionY = y
         };
         
-        _networkClient.SendMessageAsync(message);
+        _gameClient.SendMessageAsync(message);
     }
     
-    public void SendChatMessage(string text)
+    public void SendChat(string text)
     {
-        if (_localPlayer == null || _networkClient == null) return;
+        if (_localPlayer == null || _gameClient == null) return;
         
         var message = new ChatMessage
         {
@@ -77,7 +86,7 @@ public class GameManager
             Text = text
         };
         
-        _networkClient.SendMessageAsync(message);
+        _gameClient.SendMessageAsync(message);
     }
     
     private void HandleNetworkMessage(GameMessage message)
@@ -94,15 +103,23 @@ public class GameManager
                 break;
                 
             case PieceDamagedMessage pieceDamaged:
-                OnGameEvent?.Invoke($"Piece {pieceDamaged.PieceType} damaged!");
+                OnGameEvent?.Invoke($"{pieceDamaged.PieceType} damaged! ({pieceDamaged.Damage} damage)");
                 break;
                 
             case MatchEndMessage matchEnd:
-                OnGameEvent?.Invoke($"Match finished! Winner: Player {matchEnd.WinnerPlayerId}");
+                OnGameEvent?.Invoke($"Game Over! Winner: Player {matchEnd.WinnerPlayerId} - {matchEnd.WinReason}");
                 break;
                 
             case ChatMessage chat:
-                OnChatMessage?.Invoke($"[{chat.PlayerName}]: {chat.Text}");
+                OnChatMessage?.Invoke($"{chat.PlayerName}: {chat.Text}");
+                break;
+                
+            case PingMessage ping:
+                // Répondre au ping automatiquement
+                if (_gameClient != null)
+                {
+                    _gameClient.SendMessageAsync(new PingMessage());
+                }
                 break;
         }
     }
@@ -111,18 +128,28 @@ public class GameManager
     {
         if (response.Success)
         {
-            _localPlayer = new Player
+            _localPlayer = new LocalPlayer
             {
                 Id = response.PlayerId,
                 Name = response.PlayerName ?? "Player",
                 Side = response.Side ?? "north"
             };
             
-            OnGameEvent?.Invoke($"Connected as {_localPlayer.Name} on {_localPlayer.Side} side");
+            OnGameEvent?.Invoke($"Connected successfully as {_localPlayer.Name}");
         }
         else
         {
             OnGameEvent?.Invoke($"Connection failed: {response.ErrorMessage}");
         }
     }
+}
+
+public class LocalPlayer
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Side { get; set; } = "north";
+    public float PositionX { get; set; } = 0.5f;
+    public float PositionY { get; set; } = 0.5f;
+    public bool IsReady { get; set; }
 }

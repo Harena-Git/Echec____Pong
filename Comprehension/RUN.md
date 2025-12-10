@@ -1,9 +1,7 @@
-cd ServerApp
-dotnet add package Microsoft.EntityFrameworkCore
-dotnet add package Microsoft.EntityFrameworkCore.Design
-dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL
-dotnet add package System.Text.Json
-
+# Compiler le client (pour les joueurs)
 cd ClientApp
-dotnet add package System.Text.Json
+dotnet publish -c Release -o ../Distrib/Client --self-contained true
 
+# Compiler le serveur (pour l'hôte)
+cd ../ServerApp  
+dotnet publish -c Release -o ../Distrib/Server --self-contained true

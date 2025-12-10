@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace ClientApp.Network;
+namespace ServerApp.Network;
 
 public abstract class GameMessage
 {
