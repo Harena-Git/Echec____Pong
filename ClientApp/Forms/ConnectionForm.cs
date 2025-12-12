@@ -14,6 +14,7 @@ public class ConnectionForm : Form
     private RadioButton? _customRadio;
     private TextBox? _customIpTextBox;
     private Button? _connectButton;
+    private Button? _localModeButton;
     private Label? _statusLabel;
     
     public ConnectionForm()
@@ -107,14 +108,28 @@ public class ConnectionForm : Form
         _connectButton.FlatAppearance.BorderSize = 0;
         _connectButton.Click += ConnectButton_Click;
         
+        _localModeButton = new Button
+        {
+            Text = "MODE LOCAL (DÉMO)",
+            Font = new Font("Segoe UI", 12, FontStyle.Bold),
+            Location = new Point(175, 410),
+            Size = new Size(250, 40),
+            BackColor = Color.FromArgb(16, 124, 16),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Cursor = Cursors.Hand
+        };
+        _localModeButton.FlatAppearance.BorderSize = 0;
+        _localModeButton.Click += LocalModeButton_Click;
+        
         _statusLabel = new Label
         {
             Text = "",
             Font = new Font("Segoe UI", 10),
             ForeColor = Color.Yellow,
             AutoSize = false,
-            Size = new Size(500, 40),
-            Location = new Point(50, 410),
+            Size = new Size(500, 30),
+            Location = new Point(50, 465),
             TextAlign = ContentAlignment.MiddleCenter
         };
         
@@ -145,6 +160,7 @@ public class ConnectionForm : Form
         Controls.Add(_customRadio);
         Controls.Add(_customIpTextBox);
         Controls.Add(_connectButton);
+        Controls.Add(_localModeButton);
         Controls.Add(_statusLabel);
     }
     
@@ -266,5 +282,19 @@ public class ConnectionForm : Form
         {
             return null;
         }
+    }
+    
+    private void LocalModeButton_Click(object? sender, EventArgs e)
+    {
+        if (_statusLabel == null) return;
+        
+        _statusLabel.Text = "🎮 Lancement du mode local...";
+        _statusLabel.ForeColor = Color.LimeGreen;
+        
+        // Créer directement MainForm en mode local
+        var mainForm = new MainForm();
+        mainForm.FormClosed += (s, args) => Close();
+        mainForm.Show();
+        Hide();
     }
 }

@@ -10,6 +10,8 @@ public class MainForm : Form
 {
     private GameClient? _gameClient;
     private GameManager? _gameManager;
+    private LocalGameMode? _localGameMode;
+    private bool _isLocalMode = false;
     private string? _playerName;
     private int? _playerId;
     private string? _playerSide;
@@ -40,22 +42,36 @@ public class MainForm : Form
     private bool _leftPressed = false;
     private bool _rightPressed = false;
     
+    // Constructeur pour mode réseau
     public MainForm(GameClient gameClient, GameManager gameManager, string playerName)
     {
         _gameClient = gameClient;
         _gameManager = gameManager;
         _playerName = playerName;
+        _isLocalMode = false;
         
         InitializeComponent();
         SetupEventHandlers();
         ShowNameInputPage();
     }
     
+    // Constructeur pour mode local (sans serveur)
+    public MainForm()
+    {
+        _isLocalMode = true;
+        _localGameMode = new LocalGameMode();
+        _playerName = "Joueur Local";
+        
+        InitializeComponent();
+        SetupLocalModeEventHandlers();
+        ShowGamePage(); // Aller directement au jeu
+    }
+    
     private void InitializeComponent()
     {
-        // Configuration de la fenêtre principale
+        // Configuration de la fenêtre principale (taille réduite pour petits écrans)
         Text = "Échec-Pong - Client";
-        Size = new Size(900, 700);
+        Size = new Size(800, 600);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -190,7 +206,7 @@ public class MainForm : Form
         _previewPictureBox = new PictureBox
         {
             Location = new Point(100, 180),
-            Size = new Size(700, 350),
+            Size = new Size(600, 250),
             BackColor = Color.FromArgb(30, 30, 30),
             BorderStyle = BorderStyle.FixedSingle
         };
@@ -236,8 +252,8 @@ public class MainForm : Form
         
         _gameCanvas = new PictureBox
         {
-            Location = new Point(50, 50),
-            Size = new Size(800, 550),
+            Location = new Point(40, 50),
+            Size = new Size(680, 420),
             BackColor = Color.Black,
             BorderStyle = BorderStyle.FixedSingle
         };
@@ -293,12 +309,68 @@ public class MainForm : Form
         if (_gameManager != null)
         {
             _gameManager.OnGameStateUpdated += OnGameStateUpdated;
+            _gameManager.OnGameEvent += (msg) =>
+            {
+                if (_statusLabel == null) return;
+                if (InvokeRequired)
+                {
+                    Invoke(new Action(() =>
+                    {
+                        _statusLabel.Text = msg;
+                        _statusLabel.ForeColor = Color.Yellow;
+                    }));
+                }
+                else
+                {
+                    _statusLabel.Text = msg;
+                    _statusLabel.ForeColor = Color.Yellow;
+                }
+            };
         }
         
         // Gestion du clavier
         KeyPreview = true;
         KeyDown += MainForm_KeyDown;
         KeyUp += MainForm_KeyUp;
+    }
+    
+    private void SetupLocalModeEventHandlers()
+    {
+        if (_localGameMode != null)
+        {
+            _localGameMode.OnGameStateUpdated += (state) =>
+            {
+                if (InvokeRequired)
+                {
+                    Invoke(new Action(() => UpdateLocalGameUI(state)));
+                }
+                else
+                {
+                    UpdateLocalGameUI(state);
+                }
+            };
+        }
+        
+        // Gestion du clavier
+        KeyPreview = true;
+        KeyDown += MainForm_KeyDown;
+        KeyUp += MainForm_KeyUp;
+    }
+    
+    private void UpdateLocalGameUI(GameState state)
+    {
+        // Mettre à jour les labels de score
+        if (_scoreLabel != null)
+        {
+            _scoreLabel.Text = $"Nord: {state.Match.ScoreNorth}  |  Sud: {state.Match.ScoreSouth}";
+        }
+        
+        // Vérifier fin de partie
+        if (state.Match.Status == "finished")
+        {
+            string winner = state.Match.ScoreNorth > state.Match.ScoreSouth ? "Nord" : "Sud";
+            MessageBox.Show($"Partie terminée ! Gagnant: {winner}", "Fin de partie", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
     }
     
     private void ShowNameInputPage()
@@ -331,22 +403,31 @@ public class MainForm : Form
     
     private async void NameSubmitButton_Click(object? sender, EventArgs e)
     {
-        if (_nameTextBox == null || _gameClient == null || _statusLabel == null) return;
-        
+        if (_nameTextBox == null || _gameClient == null || _statusLabel == null || _nameSubmitButton == null) return;
+        _nameSubmitButton.Enabled = false;
+
         _playerName = _nameTextBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(_playerName))
         {
             _playerName = "Player" + Random.Shared.Next(1000, 9999);
             _nameTextBox.Text = _playerName;
         }
-        
+
         _statusLabel.Text = "⏳ Envoi de la demande de connexion...";
         _statusLabel.ForeColor = Color.Yellow;
-        
+
         var joinRequest = new JoinRequestMessage { PlayerName = _playerName };
-        await _gameClient.SendMessageAsync(joinRequest);
-        
-        _statusLabel.Text = "⏳ En attente de la réponse du serveur...";
+        try
+        {
+            await _gameClient.SendMessageAsync(joinRequest);
+            _statusLabel.Text = "⏳ En attente de la réponse du serveur...";
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"❌ Erreur en envoyant la demande: {ex.Message}";
+            _statusLabel.ForeColor = Color.Red;
+            _nameSubmitButton.Enabled = true;
+        }
     }
     
     private async void StartGameButton_Click(object? sender, EventArgs e)
@@ -397,22 +478,24 @@ public class MainForm : Form
     private void HandleJoinResponse(JoinResponseMessage response)
     {
         if (_statusLabel == null) return;
-        
         if (response.Success)
         {
             _playerId = response.PlayerId;
             _playerSide = response.Side;
-            
+
             _statusLabel.Text = $"✅ Connecté en tant que {response.PlayerName} ({response.Side})";
             _statusLabel.ForeColor = Color.LimeGreen;
-            
+
+            // Désactiver le bouton de soumission pour éviter les doubles envois
+            if (_nameSubmitButton != null) _nameSubmitButton.Enabled = false;
+
             // Attendre 1 seconde puis afficher la page appropriée
             var timer = new System.Windows.Forms.Timer { Interval = 1000 };
             timer.Tick += (s, e) =>
             {
                 timer.Stop();
                 timer.Dispose();
-                
+
                 if (response.Side == "north")
                 {
                     ShowConfigPage();
@@ -428,6 +511,7 @@ public class MainForm : Form
         {
             _statusLabel.Text = $"❌ {response.ErrorMessage ?? "Connexion refusée"}";
             _statusLabel.ForeColor = Color.Red;
+            if (_nameSubmitButton != null) _nameSubmitButton.Enabled = true;
         }
     }
     
@@ -476,7 +560,34 @@ public class MainForm : Form
     
     private void RenderTimer_Tick(object? sender, EventArgs e)
     {
-        // Gérer le mouvement continu de la raquette
+        // Mode local
+        if (_isLocalMode && _localGameMode != null)
+        {
+            // Gérer le mouvement de la raquette
+            var northPlayer = _localGameMode.CurrentState.Players.FirstOrDefault(p => p.Side == "north");
+            if (northPlayer != null)
+            {
+                if (_leftPressed)
+                {
+                    float newX = Math.Clamp(northPlayer.PositionX - 0.02f, 0f, 1f);
+                    _localGameMode.UpdatePlayerPosition(newX);
+                }
+                else if (_rightPressed)
+                {
+                    float newX = Math.Clamp(northPlayer.PositionX + 0.02f, 0f, 1f);
+                    _localGameMode.UpdatePlayerPosition(newX);
+                }
+            }
+            
+            // Mettre à jour la physique du jeu
+            _localGameMode.Update();
+            
+            // Redessiner
+            RenderGameLocal(_localGameMode.CurrentState);
+            return;
+        }
+        
+        // Mode réseau
         if (_gameManager?.LocalPlayer != null)
         {
             if (_leftPressed)
@@ -533,6 +644,64 @@ public class MainForm : Form
         
         _previewPictureBox.Image?.Dispose();
         _previewPictureBox.Image = bmp;
+    }
+    
+    private void RenderGameLocal(GameState state)
+    {
+        if (_gameCanvas == null || state == null) return;
+        
+        var bmp = new Bitmap(_gameCanvas.Width, _gameCanvas.Height);
+        
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.Clear(Color.FromArgb(20, 20, 20));
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            
+            int width = _gameCanvas.Width;
+            int height = _gameCanvas.Height;
+            int numCols = state.NumberOfColumns;
+            
+            // Zone Nord (haut)
+            DrawChessboard(g, state.PiecesNorth, 20, 20, width - 40, 120, numCols, false);
+            
+            // Zone de jeu (milieu)
+            int gameZoneY = 160;
+            int gameZoneHeight = 180;
+            
+            // Raquette Nord
+            var northPlayer = state.Players.FirstOrDefault(p => p.Side == "north");
+            if (northPlayer != null)
+            {
+                DrawPaddle(g, northPlayer, gameZoneY, width, numCols, Color.Cyan);
+            }
+            
+            // Filet
+            using (var pen = new Pen(Color.White, 2) { DashStyle = System.Drawing.Drawing2D.DashStyle.Dash })
+            {
+                g.DrawLine(pen, 0, gameZoneY + gameZoneHeight / 2, width, gameZoneY + gameZoneHeight / 2);
+            }
+            
+            // Balle
+            if (state.Ball != null && state.Ball.State == "moving")
+            {
+                int ballX = (int)(state.Ball.PositionX * width);
+                int ballY = gameZoneY + (int)(state.Ball.PositionY * gameZoneHeight);
+                g.FillEllipse(Brushes.Yellow, ballX - 8, ballY - 8, 16, 16);
+            }
+            
+            // Raquette Sud
+            var southPlayer = state.Players.FirstOrDefault(p => p.Side == "south");
+            if (southPlayer != null)
+            {
+                DrawPaddle(g, southPlayer, gameZoneY + gameZoneHeight - 15, width, numCols, Color.Orange);
+            }
+            
+            // Zone Sud (bas)
+            DrawChessboard(g, state.PiecesSouth, 20, height - 140, width - 40, 120, numCols, true);
+        }
+        
+        _gameCanvas.Image?.Dispose();
+        _gameCanvas.Image = bmp;
     }
     
     private void RenderGame()
